@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fun Phonics: The /oo/ Sound!</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&family=Nunito:wght@400;700;900&display=swap');
+        
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #f0fdfa; /* Light teal background */
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        h1, h2, h3, .comic-font {
+            font-family: 'Comic Neue', cursive;
+        }
+
+        .bounce:hover {
+            transform: translateY(-5px);
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .matched {
+            opacity: 0.5;
+            pointer-events: none;
+            filter: grayscale(50%);
+        }
+
+        .shake {
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+
+        /* SVG audio icon styling */
+        .audio-btn svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-10">
+
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-blue-400 to-purple-500 text-white p-6 shadow-lg rounded-b-3xl text-center mb-8 mx-auto max-w-5xl">
+        <h1 class="text-4xl md:text-5xl font-black drop-shadow-md mb-2">Fun Phonics: The /oo/ Sound!</h1>
+        <p class="text-lg md:text-xl font-bold bg-white/20 inline-block px-4 py-2 rounded-full mt-2 backdrop-blur-sm">
+            Based on "OO_Words_For_Kids-v2.docx"
+        </p>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-5xl mx-auto px-4">
+        
+        <!-- Navigation / Game Modes -->
+        <nav class="flex flex-wrap justify-center gap-4 mb-10" id="nav-tabs">
+            <!-- Tabs injected by JS -->
+        </nav>
+
+        <!-- Game Area -->
+        <div id="game-container" class="bg-white rounded-3xl shadow-xl p-6 md:p-10 border-4 border-blue-200 min-h-[400px]">
+            <!-- Dynamic content injected here -->
+        </div>
+
+    </main>
+
+    <script>
+        // Vocabulary extracted from "OO_Words_For_Kids-v2.docx"
+        const vocabulary = [
+            // Long OO
+            { en: 'Moon', am: 'ጨረቃ', type: 'long', img: 'https://placehold.co/300x300/1e3a8a/ffffff?text=Moon' },
+            { en: 'Food', am: 'ምግብ', type: 'long', img: 'https://placehold.co/300x300/10b981/ffffff?text=Food' },
+            { en: 'Zoo', am: 'እንስሳት+ማቆያ', type: 'long', img: 'https://placehold.co/300x300/f59e0b/ffffff?text=Zoo' },
+            { en: 'Room', am: 'ክፍል', type: 'long', img: 'https://placehold.co/300x300/8b5cf6/ffffff?text=Room' },
+            { en: 'Boot', am: 'ጫማ', type: 'long', img: 'https://placehold.co/300x300/ef4444/ffffff?text=Boot' },
+            { en: 'School', am: 'ትምህርት+ቤት', type: 'long', img: 'https://placehold.co/300x300/3b82f6/ffffff?text=School' },
+            // Short OO
+            { en: 'Book', am: 'መጽሐፍ', type: 'short', img: 'https://placehold.co/300x300/059669/ffffff?text=Book' },
+            { en: 'Look', am: 'ማየት', type: 'short', img: 'https://placehold.co/300x300/d97706/ffffff?text=Look' },
+            { en: 'Cook', am: 'ማብሰል', type: 'short', img: 'https://placehold.co/300x300/dc2626/ffffff?text=Cook' },
+            { en: 'Good', am: 'ጥሩ', type: 'short', img: 'https://placehold.co/300x300/7c3aed/ffffff?text=Good' },
+            { en: 'Foot', am: 'እግር', type: 'short', img: 'https://placehold.co/300x300/2563eb/ffffff?text=Foot' },
+            { en: 'Wood', am: 'እንጨት', type: 'short', img: 'https://placehold.co/300x300/65a30d/ffffff?text=Wood' }
+        ];
+
+        const modes = [
+            { id: 'flashcards', name: 'Interactive Flashcards', icon: '🎴' },
+            { id: 'listen_match', name: 'Listen & Match', icon: '🎧' },
+            { id: 'click_phoneme', name: 'Click the Word', icon: '👆' },
+            { id: 'amharic_match', name: 'Amharic Match', icon: '🇪🇹' }
+        ];
+
+        let currentMode = 'flashcards';
+        let voices = [];
+        let currentGameData = {}; // Stores state for the current active game
+
+        // Initialize Speech Synthesis
+        function initSpeech() {
+            voices = window.speechSynthesis.getVoices();
+            if (voices.length === 0) {
+                window.speechSynthesis.onvoiceschanged = () => {
+                    voices = window.speechSynthesis.getVoices();
+                };
+            }
+        }
+
+        // Play audio with British Female voice
+        function playAudio(text, event) {
+            if(event) {
+                event.stopPropagation(); // Prevent triggering card clicks
+            }
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            // Try to find a UK Female voice
+            let ukFemale = voices.find(v => v.lang === 'en-GB' && (v.name.includes('Female') || v.name.includes('UK') || v.name.includes('Google UK English Female')));
+            
+            // Fallback to any UK voice, then any English female, then default
+            if (!ukFemale) ukFemale = voices.find(v => v.lang === 'en-GB');
+            if (!ukFemale) ukFemale = voices.find(v => v.lang.startsWith('en') && v.name.includes('Female'));
+            
+            if (ukFemale) utterance.voice = ukFemale;
+            
+            utterance.rate = 0.85; // Slower for kids
+            utterance.pitch = 1.1; // Slightly higher pitch
+            
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // SVG Audio Icon
+        const audioIconSVG = `<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>`;
+        
+        // Universal Badge HTML
+        const phonemeBadge = `<div class="absolute top-2 right-2 bg-yellow-300 text-yellow-900 px-3 py-1 rounded-full font-bold text-sm shadow-md border-2 border-yellow-400 flex items-center gap-1 comic-font z-10">/oo/ = /ኡ/</div>`;
+
+        // Utility: Get N random items from array
+        function getRandomItems(arr, n) {
+            const shuffled = [...arr].sort(() => 0.5 - Math.random());
+            return shuffled.slice(0, n);
+        }
+
+        // Render Tabs
+        function renderTabs() {
+            const nav = document.getElementById('nav-tabs');
+            nav.innerHTML = modes.map(mode => `
+                <button onclick="switchMode('${mode.id}')" 
+                        class="px-6 py-3 rounded-full font-bold text-lg shadow-md transition-all duration-300 flex items-center gap-2 border-4 
+                        ${currentMode === mode.id 
+                            ? 'bg-blue-500 text-white border-blue-700 scale-105' 
+                            : 'bg-white text-gray-700 border-gray-200 hover:bg-blue-50 hover:border-blue-300 hover:-translate-y-1'}">
+                    <span>${mode.icon}</span> ${mode.name}
+                </button>
+            `).join('');
+        }
+
+        // Switch Game Mode
+        function switchMode(modeId) {
+            currentMode = modeId;
+            renderTabs();
+            renderGame();
+        }
+
+        // Main Render Router
+        function renderGame() {
+            const container = document.getElementById('game-container');
+            container.innerHTML = ''; // Clear current
+            
+            switch(currentMode) {
+                case 'flashcards':
+                    renderFlashcards(container);
+                    break;
+                case 'listen_match':
+                    renderListenMatch(container);
+                    break;
+                case 'click_phoneme':
+                    renderClickPhoneme(container);
+                    break;
+                case 'amharic_match':
+                    renderAmharicMatch(container);
+                    break;
+            }
+        }
+
+        // ==========================================
+        // GAME 1: INTERACTIVE FLASHCARDS
+        // ==========================================
+        function renderFlashcards(container) {
+            container.innerHTML = `
+                <div class="text-center mb-6">
+                    <h2 class="text-3xl font-bold text-purple-600 mb-2">Interactive Flashcards</h2>
+                    <p class="text-gray-600 text-lg">Click the audio button to hear the English word!</p>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    ${vocabulary.map(word => `
+                        <div class="bg-white rounded-2xl p-4 shadow-lg border-2 border-dashed border-purple-300 relative bounce group overflow-hidden">
+                            ${phonemeBadge}
+                            <div class="aspect-square w-full rounded-xl overflow-hidden bg-gray-100 mb-4 border-2 border-gray-200 relative cursor-pointer" onclick="playAudio('${word.en}', event)">
+                                <img src="${word.img}" alt="${word.en}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300">
+                                <button class="absolute inset-0 m-auto w-16 h-16 bg-white/80 rounded-full flex items-center justify-center text-purple-600 opacity-0 group-hover:opacity-100 transition-opacity audio-btn shadow-lg">
+                                    ${audioIconSVG}
+                                </button>
+                            </div>
+                            <div class="flex justify-between items-center bg-purple-50 p-3 rounded-xl border border-purple-100">
+                                <div>
+                                    <h3 class="text-2xl font-black text-purple-800">${word.en}</h3>
+                                    <p class="text-lg font-bold text-purple-600">${word.am}</p>
+                                </div>
+                                <button onclick="playAudio('${word.en}', event)" class="w-12 h-12 bg-purple-500 text-white rounded-full flex items-center justify-center shadow-md hover:bg-purple-600 active:scale-95 transition-all audio-btn">
+                                    ${audioIconSVG}
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // GAME 2: LISTEN & MATCH
+        // ==========================================
+        function renderListenMatch(container) {
+            const choices = getRandomItems(vocabulary, 4);
+            const targetWord = choices[Math.floor(Math.random() * choices.length)];
+            
+            // Auto play audio when game loads
+            setTimeout(() => playAudio(targetWord.en), 500);
+
+            let html = `
+                <div class="text-center mb-8">
+                    <h2 class="text-3xl font-bold text-green-600 mb-4">Listen & Match the Image</h2>
+                    
+                    <button onclick="playAudio('${targetWord.en}', event)" class="mx-auto flex items-center gap-3 bg-green-500 text-white px-8 py-4 rounded-full text-2xl font-bold shadow-[0_6px_0_#166534] active:shadow-[0_0px_0_#166534] active:translate-y-[6px] transition-all hover:bg-green-400 mb-6">
+                        <span class="audio-btn">${audioIconSVG}</span> Listen to the Word
+                    </button>
+                    
+                    <p class="text-gray-600 text-xl font-bold">Which image matches the sound?</p>
+                </div>
+                
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="lm-options">
+                    ${choices.map((word, index) => `
+                        <div onclick="handleListenMatch('${word.en}', '${targetWord.en}', this)" class="bg-white rounded-2xl p-3 shadow-md border-4 border-gray-200 cursor-pointer hover:border-green-400 transition-all relative overflow-hidden group">
+                            ${phonemeBadge}
+                            <img src="${word.img}" alt="Option" class="w-full aspect-square object-cover rounded-xl group-hover:scale-105 transition-transform">
+                        </div>
+                    `).join('')}
+                </div>
+                <div id="lm-feedback" class="text-center mt-8 text-2xl font-bold h-10"></div>
+            `;
+            container.innerHTML = html;
+        }
+
+        window.handleListenMatch = (selected, target, element) => {
+            const allCards = document.getElementById('lm-options').children;
+            const feedback = document.getElementById('lm-feedback');
+
+            if (selected === target) {
+                // Correct
+                playAudio("Correct! " + target);
+                element.classList.replace('border-gray-200', 'border-green-500');
+                element.classList.replace('hover:border-green-400', 'border-green-500');
+                element.classList.add('bg-green-50');
+                feedback.innerHTML = `<span class="text-green-600 comic-font text-4xl">Great Job! 🎉 It's ${target}</span>`;
+                
+                // Disable all
+                for(let card of allCards) {
+                    card.style.pointerEvents = 'none';
+                    if (card !== element) card.style.opacity = '0.5';
+                }
+                
+                // Next button
+                setTimeout(() => {
+                    feedback.innerHTML += `<br><button onclick="renderGame()" class="mt-4 bg-blue-500 text-white px-6 py-2 rounded-full text-lg shadow-md hover:bg-blue-600">Play Again</button>`;
+                }, 1000);
+            } else {
+                // Incorrect
+                element.classList.add('shake', 'border-red-500');
+                element.classList.replace('border-gray-200', 'border-red-500');
+                setTimeout(() => {
+                    element.classList.remove('shake');
+                    element.classList.replace('border-red-500', 'border-gray-200');
+                }, 500);
+                feedback.innerHTML = `<span class="text-red-500 comic-font">Oops, try again!</span>`;
+            }
+        };
+
+
+        // ==========================================
+        // GAME 3: CLICK THE CORRECT PHONEME/WORD
+        // ==========================================
+        function renderClickPhoneme(container) {
+            const choices = getRandomItems(vocabulary, 4);
+            const targetWord = choices[Math.floor(Math.random() * choices.length)];
+
+            let html = `
+                <div class="flex flex-col md:flex-row gap-8 items-center justify-center">
+                    
+                    <div class="w-full md:w-1/2 flex flex-col items-center">
+                        <h2 class="text-3xl font-bold text-orange-600 mb-6 text-center">Click the Correct Word</h2>
+                        <div class="relative w-64 h-64 md:w-80 md:h-80 rounded-3xl p-2 bg-white shadow-xl border-4 border-orange-300">
+                            ${phonemeBadge}
+                            <img src="${targetWord.img}" alt="Target" class="w-full h-full object-cover rounded-2xl">
+                            
+                            <!-- Audio button overlay on image -->
+                            <button onclick="playAudio('${targetWord.en}', event)" class="absolute bottom-4 right-4 bg-orange-500 text-white p-4 rounded-full shadow-lg hover:bg-orange-600 active:scale-95 flex items-center justify-center audio-btn">
+                                ${audioIconSVG}
+                            </button>
+                        </div>
+                        <p class="mt-4 text-2xl font-black text-gray-700 comic-font bg-orange-100 px-4 py-1 rounded-lg">Amharic: ${targetWord.am}</p>
+                    </div>
+
+                    <div class="w-full md:w-1/2 flex flex-col gap-4" id="cp-options">
+                        ${choices.map(word => `
+                            <button onclick="handleClickPhoneme('${word.en}', '${targetWord.en}', this)" class="w-full bg-white text-gray-800 text-3xl font-bold py-6 px-6 rounded-2xl shadow-md border-4 border-gray-200 hover:border-orange-400 hover:bg-orange-50 transition-all flex justify-between items-center">
+                                <span>${word.en}</span>
+                                <span class="bg-gray-100 p-2 rounded-full text-gray-400 audio-btn hover:text-orange-500 hover:bg-orange-200 transition-colors" onclick="playAudio('${word.en}', event)">
+                                    ${audioIconSVG}
+                                </span>
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+                <div id="cp-feedback" class="text-center mt-6 text-2xl font-bold min-h-[60px]"></div>
+            `;
+            container.innerHTML = html;
+        }
+
+        window.handleClickPhoneme = (selected, target, element) => {
+            const allButtons = document.getElementById('cp-options').children;
+            const feedback = document.getElementById('cp-feedback');
+
+            if (selected === target) {
+                // Correct
+                playAudio("Excellent! " + target);
+                element.classList.replace('border-gray-200', 'border-green-500');
+                element.classList.replace('hover:border-orange-400', 'border-green-500');
+                element.classList.replace('hover:bg-orange-50', 'bg-green-100');
+                element.classList.add('text-green-700');
+                
+                feedback.innerHTML = `<span class="text-green-600 comic-font text-4xl">Awesome! 🌟</span>`;
+                
+                // Disable all
+                for(let btn of allButtons) {
+                    btn.style.pointerEvents = 'none';
+                    if (btn !== element) btn.style.opacity = '0.4';
+                }
+                
+                setTimeout(() => {
+                    feedback.innerHTML += `<br><button onclick="renderGame()" class="mt-4 bg-orange-500 text-white px-6 py-2 rounded-full text-lg shadow-md hover:bg-orange-600 pointer-events-auto">Next Word</button>`;
+                }, 1000);
+
+            } else {
+                // Incorrect
+                element.classList.add('shake', 'border-red-500', 'bg-red-50');
+                element.classList.replace('border-gray-200', 'border-red-500');
+                setTimeout(() => {
+                    element.classList.remove('shake', 'bg-red-50');
+                    element.classList.replace('border-red-500', 'border-gray-200');
+                }, 500);
+                feedback.innerHTML = `<span class="text-red-500 comic-font">Not quite, try another!</span>`;
+            }
+        };
+
+
+        // ==========================================
+        // GAME 4: AMHARIC VS ENGLISH MATCH
+        // ==========================================
+        function renderAmharicMatch(container) {
+            const pairsCount = 5;
+            const selectedPairs = getRandomItems(vocabulary, pairsCount);
+            
+            // Create two shuffled arrays
+            const englishCol = [...selectedPairs].sort(() => 0.5 - Math.random());
+            const amharicCol = [...selectedPairs].sort(() => 0.5 - Math.random());
+
+            currentGameData = {
+                selectedEng: null,
+                selectedAmh: null,
+                matches: 0,
+                total: pairsCount,
+                engEl: null,
+                amhEl: null
+            };
+
+            let html = `
+                <div class="text-center mb-6 relative">
+                    ${phonemeBadge}
+                    <h2 class="text-3xl font-bold text-indigo-600 mb-2 mt-8 md:mt-0">Match the Meanings!</h2>
+                    <p class="text-gray-600 text-lg">Click an English word, then click its Amharic meaning.</p>
+                </div>
+
+                <div class="flex justify-between max-w-3xl mx-auto gap-4">
+                    <!-- English Column -->
+                    <div class="w-1/2 flex flex-col gap-4" id="col-eng">
+                        ${englishCol.map(word => `
+                            <button onclick="selectAmhMatch('eng', '${word.en}', this)" data-word="${word.en}" class="match-btn-eng w-full bg-blue-50 text-blue-800 text-xl md:text-2xl font-bold py-4 px-4 rounded-xl border-4 border-blue-200 hover:border-blue-400 transition-all flex items-center justify-between shadow-sm">
+                                <span>${word.en}</span>
+                                <span class="bg-blue-200 p-1 rounded-full text-blue-600 audio-btn hover:text-blue-800 hover:bg-blue-300" onclick="playAudio('${word.en}', event)">
+                                    ${audioIconSVG}
+                                </span>
+                            </button>
+                        `).join('')}
+                    </div>
+
+                    <!-- Amharic Column -->
+                    <div class="w-1/2 flex flex-col gap-4" id="col-amh">
+                        ${amharicCol.map(word => `
+                            <button onclick="selectAmhMatch('amh', '${word.en}', this)" data-word="${word.en}" class="match-btn-amh w-full bg-pink-50 text-pink-800 text-xl md:text-2xl font-bold py-4 px-4 rounded-xl border-4 border-pink-200 hover:border-pink-400 transition-all shadow-sm comic-font">
+                                ${word.am}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+                <div id="am-feedback" class="text-center mt-8 text-2xl font-bold h-12"></div>
+            `;
+            container.innerHTML = html;
+        }
+
+        window.selectAmhMatch = (type, wordEn, element) => {
+            if (element.classList.contains('matched')) return;
+
+            const isEng = type === 'eng';
+            
+            // Clear previous selection in the same column
+            const allColBtns = document.querySelectorAll(isEng ? '.match-btn-eng' : '.match-btn-amh');
+            allColBtns.forEach(btn => {
+                if(!btn.classList.contains('matched')) {
+                    btn.classList.remove('ring-4', 'ring-indigo-500', 'scale-105');
+                }
+            });
+
+            // Set current selection visually
+            element.classList.add('ring-4', 'ring-indigo-500', 'scale-105');
+
+            if (isEng) {
+                currentGameData.selectedEng = wordEn;
+                currentGameData.engEl = element;
+                playAudio(wordEn); // Read the word when clicked
+            } else {
+                currentGameData.selectedAmh = wordEn;
+                currentGameData.amhEl = element;
+            }
+
+            checkAmharicMatch();
+        };
+
+        function checkAmharicMatch() {
+            const { selectedEng, selectedAmh, engEl, amhEl } = currentGameData;
+            const feedback = document.getElementById('am-feedback');
+
+            // If both are selected, check match
+            if (selectedEng && selectedAmh) {
+                if (selectedEng === selectedAmh) {
+                    // Match!
+                    engEl.classList.remove('ring-indigo-500', 'ring-4', 'scale-105', 'border-blue-200', 'hover:border-blue-400');
+                    amhEl.classList.remove('ring-indigo-500', 'ring-4', 'scale-105', 'border-pink-200', 'hover:border-pink-400');
+                    
+                    engEl.classList.add('bg-green-100', 'border-green-500', 'text-green-800', 'matched');
+                    amhEl.classList.add('bg-green-100', 'border-green-500', 'text-green-800', 'matched');
+                    
+                    playAudio("Correct!");
+                    feedback.innerHTML = `<span class="text-green-600 comic-font">Perfect match! 🎈</span>`;
+                    
+                    currentGameData.matches++;
+                    
+                    // Win condition
+                    if (currentGameData.matches === currentGameData.total) {
+                        feedback.innerHTML = `<span class="text-green-600 comic-font text-4xl">You did it! 🎉🏆</span><br>
+                        <button onclick="renderGame()" class="mt-4 bg-indigo-500 text-white px-6 py-2 rounded-full text-lg shadow-md hover:bg-indigo-600 pointer-events-auto">Play Again</button>`;
+                    } else {
+                        setTimeout(() => { feedback.innerHTML = ''; }, 1500);
+                    }
+
+                } else {
+                    // Mismatch
+                    engEl.classList.add('shake', 'bg-red-100');
+                    amhEl.classList.add('shake', 'bg-red-100');
+                    
+                    feedback.innerHTML = `<span class="text-red-500 comic-font">Try again!</span>`;
+
+                    setTimeout(() => {
+                        engEl.classList.remove('shake', 'bg-red-100', 'ring-4', 'ring-indigo-500', 'scale-105');
+                        amhEl.classList.remove('shake', 'bg-red-100', 'ring-4', 'ring-indigo-500', 'scale-105');
+                        feedback.innerHTML = '';
+                    }, 800);
+                }
+
+                // Reset selection state
+                currentGameData.selectedEng = null;
+                currentGameData.selectedAmh = null;
+                currentGameData.engEl = null;
+                currentGameData.amhEl = null;
+            }
+        }
+
+        // Initialize App on Load
+        window.onload = () => {
+            initSpeech();
+            renderTabs();
+            renderGame();
+        };
+
+    </script>
+</body>
+</html>
